@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Voice - Enterprise AI Voice Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151F32',
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- LAMEJS untuk Encoding MP3 -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-family: 'Inter', system-ui, sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        html.dark body {
+            background-color: #0B1120;
+            color: #e2e8f0;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        html.dark .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-panel-accent {
+            background: rgba(45, 212, 191, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(45, 212, 191, 0.2);
+        }
+        html.dark .glass-panel-accent {
+            background: rgba(45, 212, 191, 0.1);
+        }
+
+        .glass-panel-photo {
+            background: rgba(236, 72, 153, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(236, 72, 153, 0.2);
+        }
+        html.dark .glass-panel-photo {
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        /* Speed Panel Khusus - Lebih menonjol */
+        .glass-panel-speed {
+            background: rgba(245, 158, 11, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.05);
+        }
+        html.dark .glass-panel-speed {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(79, 70, 229, 0.3);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        /* Custom thumb for speed specifically */
+        .speed-range::-webkit-slider-thumb {
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            width: 22px;
+            height: 22px;
+            margin-top: -9px;
+            border: 2px solid #fff;
+        }
+        
+        html.dark input[type=range]::-webkit-slider-thumb {
+            background: #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        html.dark .speed-range::-webkit-slider-thumb {
+            background: #fbbf24;
+            border: 2px solid #1e293b;
+        }
+
+        /* Custom thumb for intensity specifically (Cyan) */
+        .intensity-range::-webkit-slider-thumb {
+            background: #06b6d4; /* Cyan-500 */
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+            width: 18px;
+            height: 18px;
+            margin-top: -7px;
+            border: 2px solid #fff;
+        }
+        html.dark .intensity-range::-webkit-slider-thumb {
+            background: #22d3ee; /* Cyan-400 */
+            border: 2px solid #0f172a;
+        }
+
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        html.dark input[type=range]::-webkit-slider-runnable-track {
+            background: #334155;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .loading-gradient {
+            background: linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #6366f1 100%);
+            background-size: 200% 100%;
+            animation: gradientMove 2s linear infinite;
+        }
+        .loading-gradient-amber {
+             background: linear-gradient(90deg, #d97706 0%, #fbbf24 50%, #d97706 100%);
+            background-size: 200% 100%;
+            animation: gradientMove 2s linear infinite;
+        }
+        .loading-gradient-teal {
+            background: linear-gradient(90deg, #14b8a6 0%, #2dd4bf 50%, #14b8a6 100%);
+            background-size: 200% 100%;
+            animation: gradientMove 2s linear infinite;
+        }
+        .loading-gradient-pink {
+            background: linear-gradient(90deg, #ec4899 0%, #f472b6 50%, #ec4899 100%);
+            background-size: 200% 100%;
+            animation: gradientMove 2s linear infinite;
+        }
+        @keyframes gradientMove {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+        
+        .bar {
+            width: 3px;
+            background: currentColor;
+            animation: equalize 0.5s infinite;
+        }
+        @keyframes equalize {
+            0% { height: 20%; }
+            50% { height: 100%; }
+            100% { height: 20%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- DATABASE & CONFIGURATION ---
+        const VOICE_OPTIONS = [
+            { name: "Kore", gender: "Female", style: "Balanced, Natural", id: "Kore", desc: "Suara wanita muda yang jernih dan santai." },
+            { name: "Fenrir", gender: "Male", style: "Deep, Cinematic", id: "Fenrir", desc: "Suara pria berat, dalam, dan berwibawa." },
+            { name: "Aoede", gender: "Female", style: "Emotional, Storyteller", id: "Aoede", desc: "Sangat ekspresif dan emosional." },
+            { name: "Charon", gender: "Male", style: "Authoritative, News", id: "Charon", desc: "Tegas, serius, dan terpercaya." },
+            { name: "Leda", gender: "Female", style: "Soft, ASMR", id: "Leda", desc: "Lembut, menenangkan, dan halus." },
+            { name: "Orion", gender: "Male", style: "Casual, Friendly", id: "Orus", desc: "Seperti teman ngobrol sehari-hari." },
+            { name: "Nyx", gender: "Female", style: "Confident, Ads", id: "Callirrhoe", desc: "Modern, percaya diri, dan 'mahal'." },
+            { name: "Atlas", gender: "Male", style: "Professional, Edu", id: "Puck", desc: "Jelas, artikulatif, dan cerdas." },
+            { name: "Selene", gender: "Female", style: "Elegant, Premium", id: "Erinome", desc: "Elegan, dewasa, dan sophisticated." },
+            { name: "Ares", gender: "Male", style: "Hype, Energetic", id: "Zephyr", desc: "Cepat, penuh energi, dan semangat." },
+            { name: "Luna", gender: "Female", style: "Empathetic, Soft", id: "Autonoe", desc: "Suara penuh empati dan kehangatan." },
+            { name: "Titan", gender: "Male", style: "Deep, Gravelly", id: "Enceladus", desc: "Suara pria sangat berat dan berkarakter." },
+            { name: "Nova", gender: "Male", style: "Broadcast, Radio", id: "Iapetus", desc: "Suara penyiar radio klasik." },
+            { name: "Vega", gender: "Male", style: "Calm, Narrator", id: "Umbriel", desc: "Tenang, stabil, dan datar." },
+            { name: "Lyra", gender: "Female", style: "Formal, Corporate", id: "Algieba", desc: "Sangat formal dan profesional." },
+            { name: "Rhea", gender: "Female", style: "Friendly, CS", id: "Despina", desc: "Ramah, membantu, dan ceria." },
+            { name: "Rigel", gender: "Male", style: "Fast, Promo", id: "Algenib", desc: "Cepat dan to-the-point." },
+            { name: "Sirius", gender: "Male", style: "Audiobook, Story", id: "Rasalgethi", desc: "Gaya mendongeng klasik." },
+            { name: "Gaia", gender: "Female", style: "Mature, Warm", id: "Laomedeia", desc: "Dewasa dan menenangkan." },
+            { name: "Zenith", gender: "Male", style: "Tech, Futuristic", id: "Achernar", desc: "Bersih, modern, dan digital." }
+        ];
+
+        // --- DELIVERY STYLES WITH UPDATED INTENSITY LOGIC ---
+        const DELIVERY_STYLES = [
+            { id: "semangat", name: "Semangat (Energetic)", icon: "fa-fire", prompt: "Suara penuh energi, antusias tinggi, tempo cepat, dan sangat bertenaga." },
+            { id: "profesional", name: "Profesional", icon: "fa-user-tie", prompt: "Suara berwibawa, artikulasi sangat jelas, formal, meyakinkan." },
+            { id: "santai", name: "Santai (Casual)", icon: "fa-couch", prompt: "Gaya bicara rileks, seperti ngobrol dengan teman akrab, tidak kaku." },
+            { id: "ceria", name: "Ceria (Happy)", icon: "fa-smile-beam", prompt: "Nada suara tersenyum (smiling voice), bahagia, uplifting, dan positif." },
+            { id: "sedih", name: "Sedih (Sad)", icon: "fa-sad-tear", prompt: "Nada rendah, lambat, terdengar sedih, kecewa, atau berduka." },
+            { id: "marah", name: "Marah (Angry)", icon: "fa-face-angry", prompt: "Nada tinggi, tegas, tajam, intens, dan terdengar kesal." },
+            { id: "berbisik", name: "Berbisik (Whisper)", icon: "fa-user-secret", prompt: "Suara sangat pelan, berbisik dekat microphone, mendesah." },
+            { id: "dramatis", name: "Dramatis (Dramatic)", icon: "fa-masks-theater", prompt: "Penuh penekanan, jeda yang intens, emosional, teatrikal." },
+            { id: "tenang", name: "Tenang (Calm)", icon: "fa-water", prompt: "Sangat stabil, lembut, datar, menenangkan, cocok untuk meditasi." },
+            { id: "informatif", name: "Informatif (News)", icon: "fa-newspaper", prompt: "Objektif, jelas, netral, faktual, seperti pembaca berita." },
+            { id: "teriak", name: "Teriak (Shouting)", icon: "fa-bullhorn", prompt: "Volume suara keras, intensitas tinggi, memanggil." },
+            { id: "ngosngosan", name: "Ngos-ngosan (Panting)", icon: "fa-person-running", prompt: "Suara terengah-engah, nafas berat dan cepat." },
+            { 
+                id: "cdrama_cinematic_v2", 
+                name: "Drama China (Cinematic V2)", 
+                icon: "fa-film", 
+                prompt: `SYSTEM INSTRUCTION — DRAMA_CINA_CINEMATIC_LOCK_V2
+
+You are a cinematic voice performance engine.
+
+Your task is to deliver the script in authentic modern Chinese drama style (urban romance / elite family conflict tone).
+You must prioritize emotional realism, cinematic pacing, and controlled intensity.
+
+You are NOT allowed to read text in neutral tone.
+
+EMOTIONAL CORE RULE:
+1. Analyze the emotional context of the script.
+2. Identify dominant emotion:
+   - Longing
+   - Regret
+   - Contained anger
+   - Emotional confession
+   - Betrayal
+   - Silent heartbreak
+3. Build a gradual emotional curve (controlled beginning → emotional rise → peak → soften).
+
+Flat delivery is strictly forbidden.
+
+VOICE DNA (MANDATORY):
+- Pace: 0.88x natural speed (never fast)
+- Tone: Warm, slightly lowered pitch baseline
+- Projection: Soft but emotionally weighted
+- Emotion layering: Minimum 3 dynamic levels
+- Breath: Natural cinematic breathing before emotional lines
+- Articulation: Clear, deliberate emphasis on key words
+- No shouting
+- No exaggerated theatrical tone
+
+DRAMATIC PAUSE SYSTEM:
+- Comma pause: 0.25–0.4 seconds
+- Emotional sentence ending: 0.6–0.8 seconds
+- Major emotional reveal: up to 1.0 second
+- Insert subtle breath before confession or confrontation lines
+Pauses must feel organic, not mechanical.
+
+CHARACTER LOCK MODE (STRICT):
+- Lock timbre, resonance, and emotional tone from first line to last.
+- No pitch drift.
+- No tonal reset mid-script.
+- Maintain identical character identity across entire generation.
+- Do not switch personality mid-delivery.
+
+PERFORMANCE BEHAVIOR:
+- Deliver as if in a high-budget romantic Chinese drama scene.
+- Emotion must feel internalized, restrained, mature.
+- Avoid monotone reading.
+- Avoid cheerful tone.
+- Avoid robotic rhythm.
+- Prioritize cinematic realism.
+
+STRICTLY PROHIBITED:
+- Neutral news-reader tone
+- Fast pacing
+- Mechanical pause timing
+- Emotional flatline delivery
+
+OUTPUT RULE:
+- Do NOT rewrite the script.
+- Do NOT summarize.
+- Do NOT add narration.
+- Only transform delivery style.
+
+Optional Enhancement:
+- Add subtle vocal trembling during vulnerable lines.
+- Use slightly lower vocal register during confrontation lines.
+- Increase emotional intensity by 15% at peak moment, then soften naturally.` 
+            }
+        ];
+
+        // --- MAIN APP COMPONENT ---
+
+        const App = () => {
+            // -- API KEY & SETTINGS STATE --
+            const [apiKey, setApiKey] = useState(() => localStorage.getItem('spacevoice_api_key') || "");
+            const [showSettings, setShowSettings] = useState(() => !localStorage.getItem('spacevoice_api_key'));
+            const [tempApiKey, setTempApiKey] = useState(localStorage.getItem('spacevoice_api_key') || "");
+
+            const mainAudioRef = useRef(null);
+            
+            // Ref for Textarea Cursor Position Logic
+            const textareaRef = useRef(null);
+
+            // -- THEME & VIEW STATE --
+            const [isDarkMode, setIsDarkMode] = useState(true);
+            const [currentView, setCurrentView] = useState("tts");
+            const [isMenuOpen, setIsMenuOpen] = useState(false); 
+
+            // -- TTS CORE STATE --
+            const [text, setText] = useState(""); 
+            const [lastGeneratedConfig, setLastGeneratedConfig] = useState({ text: "", voice: "", style: "", intensity: 5 }); // Added intensity tracking
+            const [selectedVoice, setSelectedVoice] = useState(VOICE_OPTIONS[0].id);
+            const [selectedStyle, setSelectedStyle] = useState(DELIVERY_STYLES[0].id);
+            const [styleIntensity, setStyleIntensity] = useState(5); // Default Intensity 5
+            const [optimizationMode, setOptimizationMode] = useState("optimized");
+            const [autoDetectLanguage, setAutoDetectLanguage] = useState(false); // NEW: Language Detection State
+            
+            // -- PREVIEW STATE --
+            const [previewState, setPreviewState] = useState({
+                playingVoiceId: null,
+                isLoading: false,
+                audio: null
+            });
+
+            // -- ADVANCED CONTROLS --
+            const [speed, setSpeed] = useState(1.0); // 1.0 is Normal
+            const [pitch, setPitch] = useState(0);
+            const [weight, setWeight] = useState(0);
+            const [volume, setVolume] = useState(0);
+            const [articulation, setArticulation] = useState(0);
+
+            // -- UI VISIBILITY --
+            const [uiState, setUiState] = useState({
+                voice: true,
+                style: true, // Auto open style for visibility
+                control: false
+            });
+
+            // -- PROCESSING STATES --
+            const [processing, setProcessing] = useState({ isLoading: false, step: "", error: null });
+            
+            // RESULT OBJECT
+            const [result, setResult] = useState({ 
+                previewUrl: null, 
+                downloadUrl: null, 
+                downloadSpeed: 1.0, 
+                refinedScript: null, 
+                modeUsed: "original",
+                rawPCM: null 
+            });
+            const [articulationProcessing, setArticulationProcessing] = useState(false);
+
+            // -- GENERATOR FORMS --
+            const [ideaForm, setIdeaForm] = useState({ description: "", usp: "", contentType: "Iklan Media Sosial (TikTok/Reels)", language: "Bahasa Indonesia", count: 3 });
+            const [ideaProcessing, setIdeaProcessing] = useState(false);
+            const [generatedIdeas, setGeneratedIdeas] = useState([]);
+            const [uspProcessing, setUspProcessing] = useState(false);
+            
+            const [photoForm, setPhotoForm] = useState({ 
+                imageData: null, 
+                imageName: "", 
+                contentType: "TikTok Affiliate", 
+                targetAge: "Gen Z (18 - 24 Tahun)", 
+                targetGender: "Semua Gender", 
+                language: "Bahasa Indonesia",
+                count: 3 
+            });
+            const [photoProcessing, setPhotoProcessing] = useState(false);
+            const [generatedPhotoScripts, setGeneratedPhotoScripts] = useState([]);
+            const fileInputRef = useRef(null);
+
+            // -- EFFECTS & HELPERS --
+            useEffect(() => {
+                if (isDarkMode) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            }, [isDarkMode]);
+
+            // SPEED CALIBRATION EFFECT for PREVIEW only
+            useEffect(() => {
+                if (mainAudioRef.current) {
+                    mainAudioRef.current.playbackRate = speed;
+                }
+            }, [speed, result.previewUrl]);
+
+            const toggleSection = (section) => {
+                setUiState(prev => ({ ...prev, [section]: !prev[section] }));
+            };
+
+            const pcmToAudioBuffer = async (pcmBase64, sampleRate = 24000) => {
+                const binaryString = atob(pcmBase64);
+                const len = binaryString.length;
+                const buffer = new ArrayBuffer(len);
+                const view = new Uint8Array(buffer);
+                for (let i = 0; i < len; i++) view[i] = binaryString.charCodeAt(i);
+                const int16Data = new Int16Array(buffer);
+                const float32Data = new Float32Array(int16Data.length);
+                for (let i = 0; i < int16Data.length; i++) {
+                    float32Data[i] = int16Data[i] / 32768.0;
+                }
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
+                try {
+                    const audioBuffer = audioCtx.createBuffer(1, float32Data.length, sampleRate);
+                    audioBuffer.getChannelData(0).set(float32Data);
+                    return audioBuffer;
+                } finally {
+                    if (audioCtx.state !== 'closed') {
+                        await audioCtx.close();
+                    }
+                }
+            };
+
+            // --- MP3 CONVERSION UTILS ---
+            const audioBufferToMp3Url = (buffer) => {
+                // Ensure lamejs is loaded
+                if (typeof lamejs === 'undefined') {
+                    console.error("lamejs not loaded");
+                    return null;
+                }
+
+                const channels = 1; // Mono is sufficient for TTS and faster
+                const sampleRate = buffer.sampleRate;
+                const kbps = 128; // Standard quality
+                
+                const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+                const mp3Data = [];
+
+                // Get Float32 data
+                const rawData = buffer.getChannelData(0);
+                
+                // Convert to Int16 for LameJS
+                const samples = new Int16Array(rawData.length);
+                for (let i = 0; i < rawData.length; i++) {
+                    // Clamp and scale
+                    const s = Math.max(-1, Math.min(1, rawData[i]));
+                    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                // Encode in blocks
+                const sampleBlockSize = 1152; // Lame expects multiples of 576
+                for (let i = 0; i < samples.length; i += sampleBlockSize) {
+                    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
+                    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(mp3buf);
+                    }
+                }
+                
+                // Flush
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+
+                const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                return URL.createObjectURL(blob);
+            };
+
+            const performTimeStretch = async (audioBuffer, speed) => {
+                if (speed === 1.0) return audioBuffer;
+
+                const sampleRate = audioBuffer.sampleRate;
+                const channels = audioBuffer.numberOfChannels;
+                const inputData = audioBuffer.getChannelData(0); 
+                
+                const winSize = 2048; 
+                const overlap = 0.5; 
+                const hs = Math.floor(winSize * overlap); 
+                const ha = Math.floor(hs * speed); 
+                
+                const newLength = Math.floor(inputData.length / speed);
+                
+                const offlineCtx = new OfflineAudioContext(channels, newLength, sampleRate);
+                const outBuffer = offlineCtx.createBuffer(channels, newLength, sampleRate);
+                const outData = outBuffer.getChannelData(0);
+                
+                const window = new Float32Array(winSize);
+                for (let i = 0; i < winSize; i++) {
+                    window[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (winSize - 1)));
+                }
+
+                let inputIdx = 0;
+                let outputIdx = 0;
+
+                while (outputIdx + winSize < newLength && inputIdx + winSize < inputData.length) {
+                    for (let i = 0; i < winSize; i++) {
+                        outData[outputIdx + i] += inputData[Math.floor(inputIdx) + i] * window[i];
+                    }
+                    inputIdx += ha;
+                    outputIdx += hs;
+                }
+
+                const normFactor = 1 / (1 / overlap * 0.55); 
+                for (let i = 0; i < newLength; i++) {
+                    outData[i] *= normFactor;
+                }
+
+                return outBuffer;
+            };
+            
+            const pcmToWav = (pcmBase64, sampleRate = 24000) => {
+                const binaryString = atob(pcmBase64);
+                const len = binaryString.length;
+                const buffer = new ArrayBuffer(len);
+                const view = new Uint8Array(buffer);
+                for (let i = 0; i < len; i++) view[i] = binaryString.charCodeAt(i);
+                const pcmData = new Int16Array(buffer);
+                const wavHeaderBuffer = new ArrayBuffer(44);
+                const viewHeader = new DataView(wavHeaderBuffer);
+                const numChannels = 1;
+                const byteRate = sampleRate * numChannels * 2;
+                const dataSize = pcmData.length * 2;
+                const writeString = (v, o, s) => { for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+                writeString(viewHeader, 0, 'RIFF');
+                viewHeader.setUint32(4, 36 + dataSize, true);
+                writeString(viewHeader, 8, 'WAVE');
+                writeString(viewHeader, 12, 'fmt ');
+                viewHeader.setUint32(16, 16, true);
+                viewHeader.setUint16(20, 1, true);
+                viewHeader.setUint16(22, numChannels, true);
+                viewHeader.setUint32(24, sampleRate, true);
+                viewHeader.setUint32(28, byteRate, true);
+                viewHeader.setUint16(32, numChannels * 2, true);
+                viewHeader.setUint16(34, 16, true);
+                writeString(viewHeader, 36, 'data');
+                viewHeader.setUint32(40, dataSize, true);
+                return URL.createObjectURL(new Blob([wavHeaderBuffer, pcmData], { type: 'audio/wav' }));
+            };
+
+            const checkApiKey = () => {
+                if (!apiKey) {
+                    setShowSettings(true);
+                    throw new Error("API Key belum dikonfigurasi. Silakan masukkan Gemini API Key Anda.");
+                }
+            };
+
+            const saveApiKey = () => {
+                localStorage.setItem('spacevoice_api_key', tempApiKey);
+                setApiKey(tempApiKey);
+                setShowSettings(false);
+            };
+
+            const handlePreview = async (e, voiceId) => {
+                e.stopPropagation();
+                if (previewState.playingVoiceId === voiceId) {
+                    if (previewState.audio) {
+                        previewState.audio.pause();
+                        previewState.audio.currentTime = 0;
+                    }
+                    setPreviewState({ playingVoiceId: null, isLoading: false, audio: null });
+                    return;
+                }
+                if (previewState.audio) {
+                    previewState.audio.pause();
+                    previewState.audio.currentTime = 0;
+                }
+                setPreviewState({ playingVoiceId: voiceId, isLoading: true, audio: null });
+
+                try {
+                    checkApiKey();
+                    const targetVoice = VOICE_OPTIONS.find(v => v.id === voiceId);
+                    const textToSay = targetVoice ? targetVoice.desc : "Halo, ini adalah contoh suara saya.";
+                    const ttsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: textToSay }] }],
+                            generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceId } } } }
+                        })
+                    });
+                    
+                    if (!ttsResp.ok) {
+                        throw new Error(`API Error: ${ttsResp.status} ${ttsResp.statusText}`);
+                    }
+
+                    const ttsData = await ttsResp.json();
+                    if (ttsData.error) throw new Error(ttsData.error.message);
+                    const audioContent = ttsData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                    if (!audioContent) throw new Error("No audio returned");
+                    const wavUrl = pcmToWav(audioContent.data);
+                    const newAudio = new Audio(wavUrl);
+                    newAudio.playbackRate = speed;
+                    newAudio.onended = () => setPreviewState(prev => ({ ...prev, playingVoiceId: null, audio: null, isLoading: false }));
+                    newAudio.onerror = () => {
+                        setPreviewState(prev => ({ ...prev, playingVoiceId: null, audio: null, isLoading: false }));
+                        alert("Gagal memutar preview.");
+                    };
+                    await newAudio.play();
+                    setPreviewState({ playingVoiceId: voiceId, isLoading: false, audio: newAudio });
+                } catch (err) {
+                    setPreviewState({ playingVoiceId: null, isLoading: false, audio: null });
+                    console.error("Preview error:", err);
+                }
+            };
+
+            const stopPreview = () => {
+                if (previewState.audio) {
+                    previewState.audio.pause();
+                    previewState.audio.currentTime = 0;
+                }
+                setPreviewState({ playingVoiceId: null, isLoading: false, audio: null });
+            };
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = () => setPhotoForm(prev => ({ ...prev, imageData: reader.result.split(',')[1], imageName: file.name, mimeType: file.type }));
+                reader.readAsDataURL(file);
+            };
+
+            const generateScriptsFromPhoto = async () => {
+                if (!photoForm.imageData) return alert("Mohon upload foto.");
+                setPhotoProcessing(true);
+                try {
+                    checkApiKey();
+                    const prompt = `Role: Expert Copywriter. Task: Create ${photoForm.count} voice-over scripts for ${photoForm.contentType} based on the image. 
+                    Language: ${photoForm.language}.
+                    Target Audience: ${photoForm.targetAge}, ${photoForm.targetGender}.
+                    Constraint: STRICTLY keep the duration around 30 seconds (approx 500 characters). 
+                    Style: Engaging, persuasive, and suitable for the chosen platform.
+                    Return ONLY JSON array of strings (the script texts).`;
+
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: photoForm.mimeType || "image/jpeg", data: photoForm.imageData } }] }], generationConfig: { responseMimeType: "application/json" } })
+                    });
+                    
+                    if (!resp.ok) {
+                        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+                    }
+
+                    const data = await resp.json();
+                    if(data.error) throw new Error(data.error.message);
+                    setGeneratedPhotoScripts(JSON.parse(data.candidates[0].content.parts[0].text));
+                } catch (err) { 
+                    alert(`Gagal membuat script: ${err.message}`); 
+                    console.error(err);
+                } finally { 
+                    setPhotoProcessing(false); 
+                }
+            };
+
+            const generateIdeas = async () => {
+                 if (!ideaForm.description) return;
+                 setIdeaProcessing(true);
+                 try {
+                     checkApiKey();
+                     let instructions = "CRITICAL: Return ONLY the spoken words (dialogue). DO NOT include visual descriptions like 'Visual:', 'Scene:', 'Action:'. Just the script text.";
+                     if (ideaForm.contentType === "Iklan Media Sosial (TikTok/Reels)") {
+                        instructions += " MANDATORY: Because this is for TikTok Shop, EVERY script MUST end with a Call to Action to click the 'Keranjang Kuning' (Yellow Basket).";
+                        instructions += " DURATION CONSTRAINT: The script must be concise, targeting exactly 30 seconds reading time (approx 60-75 words). Not too short, not too long.";
+                     }
+                     const prompt = `Role: Direct Response Copywriter. Task: Create ${ideaForm.count} short, punchy voice-over scripts in ${ideaForm.language} for ${ideaForm.contentType}. Product: ${ideaForm.description}. USP: ${ideaForm.usp}. ${instructions} Return ONLY JSON array of strings.`;
+                     const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+                    });
+                    
+                    if (!resp.ok) {
+                        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+                    }
+
+                    const data = await resp.json();
+                    if(data.error) throw new Error(data.error.message);
+                    setGeneratedIdeas(JSON.parse(data.candidates[0].content.parts[0].text));
+                 } catch (err) { 
+                    alert(`Gagal membuat ide: ${err.message}`); 
+                 } finally { 
+                    setIdeaProcessing(false); 
+                 }
+            };
+
+            const generateUSP = async () => {
+                if (!ideaForm.description) return alert("Isi deskripsi dulu.");
+                setUspProcessing(true);
+                try {
+                    checkApiKey();
+                    const prompt = `Extract one short Indonesian USP from: "${ideaForm.description}". Return ONLY the text.`;
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    
+                    if (!resp.ok) {
+                        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+                    }
+
+                    const data = await resp.json();
+                    if(data.error) throw new Error(data.error.message);
+                    setIdeaForm(prev => ({ ...prev, usp: data.candidates[0].content.parts[0].text.trim() }));
+                } catch(err) { 
+                    alert(err.message); 
+                } finally { 
+                    setUspProcessing(false); 
+                }
+            };
+
+            const fixArticulation = async () => {
+                if (!text) return;
+                setArticulationProcessing(true);
+                try {
+                    checkApiKey();
+                    const prompt = `Rewrite to improve Indonesian articulation/prosody for TTS by adding punctuation. Do not change words. Input: "${text}"`;
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    
+                    if (!resp.ok) {
+                        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+                    }
+
+                    const data = await resp.json();
+                    if(data.error) throw new Error(data.error.message);
+                    setText(data.candidates[0].content.parts[0].text.trim());
+                } catch (err) { 
+                    alert(err.message); 
+                } finally { 
+                    setArticulationProcessing(false); 
+                }
+            };
+
+            // --- MAIN GENERATE AUDIO FUNCTION ---
+            const generateAudio = async () => {
+                if (!text.trim()) return;
+                
+                try {
+                    checkApiKey();
+                } catch(err) {
+                    alert(err.message);
+                    return;
+                }
+
+                let effectiveMode = optimizationMode;
+                if (text.match(/\(.*\)/) && optimizationMode === "original") effectiveMode = "optimized"; 
+
+                // Check all params (Voice, Style, Text, Intensity) before deciding to skip API
+                const isRebakeOnly = result.rawPCM && 
+                                     text === lastGeneratedConfig.text && 
+                                     selectedVoice === lastGeneratedConfig.voice &&
+                                     selectedStyle === lastGeneratedConfig.style &&
+                                     styleIntensity === lastGeneratedConfig.intensity;
+
+                const stepStart = isRebakeOnly ? "baking" : (effectiveMode === 'optimized' ? "analyzing" : "synthesizing");
+                setProcessing({ isLoading: true, step: stepStart, error: null });
+                
+                if (!isRebakeOnly) {
+                    setResult(prev => ({ ...prev, previewUrl: null, downloadUrl: null, refinedScript: null, modeUsed: effectiveMode }));
+                }
+
+                try {
+                    let rawPcmData = result.rawPCM;
+
+                    // STEP 1: FETCH AUDIO (If not Re-bake)
+                    if (!isRebakeOnly) {
+                        let scriptToRead = text;
+
+                        if (effectiveMode === 'optimized') {
+                            const voiceProfile = VOICE_OPTIONS.find(v => v.id === selectedVoice);
+                            const styleProfile = DELIVERY_STYLES.find(s => s.id === selectedStyle);
+                            
+                            // UPDATED LOGIC FOR LANGUAGE DETECTION
+                            const langInstruction = autoDetectLanguage 
+                                ? "Language: Detect the language of the Input Text. Output the instructions and script in that SAME language. DO NOT TRANSLATE to Indonesian if it is not Indonesian."
+                                : "Language: Indonesian.";
+
+                            // UPDATED LOGIC PROMPT WITH INTENSITY & LANGUAGE
+                            const logicPrompt = `
+                            Role: Expert TTS Director.
+                            Task: Convert the input script to text-to-speech instructions.
+                            ${langInstruction}
+                            Input Text: "${text}"
+                            Target Voice: ${voiceProfile.name}
+                            Target Style: ${styleProfile.name}
+                            Style Description: ${styleProfile.prompt}
+                            
+                            INTENSITY CONTROL (CRITICAL):
+                            The user has set the Style Intensity to: ${styleIntensity} / 10.
+                            - If 0-3: Apply the style subtly. Keep it very natural, almost neutral but with a hint of ${styleProfile.name}.
+                            - If 4-6: Balanced application. Distinctly ${styleProfile.name} but not overacting.
+                            - If 7-10: Extreme application. Heavily emphasize the characteristics of ${styleProfile.name}. Use strong punctuation, stage directions, and pacing changes.
+                            
+                            Constraint:
+                            - Maintain realistic, clear audio. Do not distort the phonemes.
+                            - Use stage directions like (laugh), (sigh), (fast), (slow), (loud), (whisper) only if they fit the ${styleProfile.name} style and intensity ${styleIntensity}.
+                            - Output ONLY the processed text with instructions.
+                            `;
+                            
+                            const refineResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                                method: "POST", headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ contents: [{ parts: [{ text: logicPrompt }] }] })
+                            });
+
+                            if (!refineResp.ok) {
+                                throw new Error(`AI Director Error: ${refineResp.status}`);
+                            }
+
+                            const refineData = await refineResp.json();
+                            if(refineData.error) throw new Error(refineData.error.message);
+                            scriptToRead = refineData.candidates[0].content.parts[0].text;
+                            setResult(prev => ({ ...prev, refinedScript: scriptToRead }));
+                        }
+
+                        setProcessing(prev => ({ ...prev, step: "synthesizing" }));
+
+                        const ttsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: scriptToRead }] }],
+                                generationConfig: { 
+                                    responseModalities: ["AUDIO"], 
+                                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } } } 
+                                }
+                            })
+                        });
+
+                        if (!ttsResp.ok) {
+                            throw new Error(`TTS Generation Error: ${ttsResp.status}`);
+                        }
+
+                        const ttsData = await ttsResp.json();
+                        if(ttsData.error) throw new Error(ttsData.error.message);
+                        const audioContent = ttsData.candidates[0].content.parts[0].inlineData;
+                        rawPcmData = audioContent.data; // Save Base64 PCM
+                    }
+
+                    // STEP 2: PREPARE PREVIEW (RAW WAV)
+                    const rawWavUrl = pcmToWav(rawPcmData);
+
+                    // STEP 3: BAKE SPEED & ENCODE MP3 FOR DOWNLOAD
+                    setProcessing(prev => ({ ...prev, step: "baking" }));
+                    const audioBuffer = await pcmToAudioBuffer(rawPcmData); 
+                    
+                    // Time stretching logic
+                    const bakedBuffer = await performTimeStretch(audioBuffer, speed); 
+                    
+                    // Convert to MP3
+                    const bakedMp3Url = audioBufferToMp3Url(bakedBuffer); 
+
+                    // STEP 4: UPDATE STATE
+                    setResult(prev => ({ 
+                        ...prev, 
+                        previewUrl: rawWavUrl, 
+                        downloadUrl: bakedMp3Url, 
+                        downloadSpeed: speed,
+                        rawPCM: rawPcmData
+                    }));
+                    
+                    setLastGeneratedConfig({ text: text, voice: selectedVoice, style: selectedStyle, intensity: styleIntensity });
+                    setProcessing({ isLoading: false, step: "completed", error: null });
+                } catch (err) {
+                    console.error("Generate error:", err);
+                    setProcessing({ isLoading: false, step: "failed", error: err.message });
+                }
+            };
+
+            const renderKnob = (label, value, setter, min, max, leftLabel, rightLabel) => (
+                <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        <span>{label}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400">{value > 0 ? `+${value}` : value}</span>
+                    </div>
+                    <input type="range" min={min} max={max} step={1} value={value} onChange={(e) => setter(Number(e.target.value))} className="w-full" />
+                    <div className="flex justify-between text-[9px] text-slate-500 font-medium">
+                        <span>{leftLabel}</span>
+                        <span>{rightLabel}</span>
+                    </div>
+                </div>
+            );
+
+            // SPECIAL RENDERER FOR SPEED CALIBRATION
+            const renderSpeedControl = () => (
+                <div className="space-y-4">
+                     <div className="flex justify-between items-end">
+                        <label className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase flex items-center gap-2">
+                            <i className="fas fa-gauge-high"></i>
+                            Speed Calibration
+                        </label>
+                        <div className="text-lg font-black text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-lg tabular-nums shadow-sm border border-amber-200 dark:border-amber-700/50">
+                            {speed.toFixed(1)}x
+                        </div>
+                    </div>
+                    
+                    <div className="relative py-2">
+                         <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 flex justify-between px-1 pointer-events-none z-0">
+                            {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map(mark => (
+                                <div key={mark} className={`w-0.5 h-3 -mt-1 ${mark === 1.0 ? 'bg-slate-400 dark:bg-slate-500 h-4 -mt-1.5' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
+                            ))}
+                         </div>
+                         <input type="range" min="0.5" max="3.0" step="0.1" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="w-full speed-range relative z-10" />
+                    </div>
+
+                    <div className="flex justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        <span className={speed <= 0.8 ? "text-amber-600 dark:text-amber-400" : ""}>Slow</span>
+                        <span className={speed >= 0.9 && speed <= 1.1 ? "text-slate-800 dark:text-white" : ""}>Normal</span>
+                        <span className={speed >= 1.2 && speed < 2.0 ? "text-amber-600 dark:text-amber-400" : ""}>Fast</span>
+                        <span className={speed >= 2.0 ? "text-red-500" : ""}>Hyper</span>
+                    </div>
+                    
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-800/30 text-[10px] text-amber-800 dark:text-amber-200/70 leading-relaxed flex gap-2 items-start">
+                        <i className="fas fa-info-circle mt-0.5 shrink-0"></i>
+                        <span>
+                            <strong>Note:</strong> Geser slider untuk preview speed. 
+                            <br/>
+                            <span className="font-bold underline">Klik "Generate Voice Over"</span> untuk menyimpan file dengan speed tersebut tanpa mengubah nada (no-chipmunk).
+                        </span>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col p-4 md:p-8 items-center bg-slate-50 dark:bg-[#0B1120] transition-colors duration-300 relative pb-24">
+                    
+                    {/* --- HEADER --- */}
+                    <div className="max-w-6xl w-full mb-8 flex flex-row items-center justify-between gap-6 relative z-50">
+                        <div className="pl-1">
+                            <h1 className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">
+                                SPACE<span className="text-slate-800 dark:text-slate-100 not-italic font-light">VOICE</span>
+                            </h1>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono tracking-widest mt-1">AI NEURAL AUDIO ENGINE</p>
+                        </div>
+                        <div className="flex items-center gap-3 relative">
+                            <button onClick={() => setShowSettings(true)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${!apiKey ? 'bg-amber-500 text-white animate-pulse' : 'bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:text-indigo-500'}`} title="Pengaturan API">
+                                <i className="fas fa-cog text-sm"></i>
+                            </button>
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm">
+                                <i className={`fas ${isDarkMode ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
+                            </button>
+                            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center transition-all active:scale-95 z-50 relative">
+                                <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'} text-lg`}></i>
+                            </button>
+                            {isMenuOpen && (
+                                <div className="absolute top-full right-0 mt-3 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden z-40 animate-slide-down origin-top-right">
+                                    <div className="p-1.5 flex flex-col gap-1">
+                                        <button onClick={() => { setCurrentView('tts'); setIsMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-lg text-xs font-bold transition-all flex items-center gap-3 ${currentView === 'tts' ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentView === 'tts' ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}><i className="fas fa-microphone-lines text-xs"></i></div>
+                                            <div><div className="font-bold">TEXT TO SPEECH</div><div className="text-[9px] opacity-70 font-normal">Buat suara dari teks</div></div>
+                                        </button>
+                                        <button onClick={() => { setCurrentView('idea'); setIsMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-lg text-xs font-bold transition-all flex items-center gap-3 ${currentView === 'idea' ? 'bg-teal-50 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentView === 'idea' ? 'bg-teal-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}><i className="fas fa-lightbulb text-xs"></i></div>
+                                            <div><div className="font-bold">IDEA TO SCRIPT</div><div className="text-[9px] opacity-70 font-normal">Generasi ide konten</div></div>
+                                        </button>
+                                        <button onClick={() => { setCurrentView('photo'); setIsMenuOpen(false); }} className={`w-full text-left px-4 py-3 rounded-lg text-xs font-bold transition-all flex items-center gap-3 ${currentView === 'photo' ? 'bg-pink-50 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${currentView === 'photo' ? 'bg-pink-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}><i className="fas fa-camera text-xs"></i></div>
+                                            <div><div className="font-bold">PHOTO TO SCRIPT</div><div className="text-[9px] opacity-70 font-normal">Analisa foto produk</div></div>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* --- MAIN CONTENT --- */}
+                    <div className="max-w-6xl w-full z-10">
+                        {currentView === 'tts' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-down">
+                                {/* LEFT: CONTROLS */}
+                                <div className="lg:col-span-4 space-y-4">
+                                    <div className="glass-panel rounded-xl overflow-hidden transition-all duration-300">
+                                        <button onClick={() => toggleSection('voice')} className="w-full p-4 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i className="fas fa-microphone-lines"></i></div>
+                                                <div className="text-left"><div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">Voice Talent</div><div className="text-[10px] text-slate-500">{VOICE_OPTIONS.find(v => v.id === selectedVoice)?.name}</div></div>
+                                            </div>
+                                            <i className={`fas fa-chevron-down text-slate-400 dark:text-slate-500 transition-transform duration-300 ${uiState.voice ? 'rotate-180' : ''}`}></i>
+                                        </button>
+                                        
+                                        {uiState.voice && (
+                                            <div className="p-2 space-y-1 max-h-[350px] overflow-y-auto scrollbar-hide border-t border-slate-200 dark:border-slate-700/50 animate-slide-down bg-slate-50/40 dark:bg-slate-900/40">
+                                                {VOICE_OPTIONS.map(voice => (
+                                                    <div key={voice.id} className={`w-full p-2.5 rounded-lg flex items-center gap-3 transition-all relative group cursor-pointer ${selectedVoice === voice.id ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'}`} onClick={() => setSelectedVoice(voice.id)}>
+                                                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-bold text-[10px]">{voice.gender === 'Male' ? 'M' : 'F'}</div>
+                                                        <div className="text-left flex-1 min-w-0"><div className="flex items-center justify-between"><span className="font-bold text-sm truncate">{voice.name}</span><span className="text-[9px] opacity-70 px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300">{voice.style}</span></div><p className="text-[10px] opacity-60 truncate">{voice.desc}</p></div>
+                                                        
+                                                        {/* PREVIEW BUTTON */}
+                                                        <div onClick={(e) => handlePreview(e, voice.id)} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all z-20 shrink-0 border border-transparent hover:border-indigo-300 dark:hover:border-indigo-600 ${previewState.playingVoiceId === voice.id ? 'bg-white text-indigo-600 shadow-xl scale-110 border-indigo-500' : 'bg-slate-200/50 dark:bg-slate-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300'}`} title="Preview Suara Ini">
+                                                            {previewState.playingVoiceId === voice.id && previewState.isLoading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : previewState.playingVoiceId === voice.id ? <i className="fas fa-stop text-xs"></i> : <i className="fas fa-play text-xs pl-0.5"></i>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* DELIVERY STYLE SELECTOR WITH INTENSITY SLIDER */}
+                                    <div className="glass-panel rounded-xl overflow-hidden transition-all duration-300">
+                                        <button onClick={() => toggleSection('style')} className="w-full p-4 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                            <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center"><i className="fas fa-sliders"></i></div><div className="text-left"><div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">Delivery Style</div><div className="text-[10px] text-slate-500">{DELIVERY_STYLES.find(s => s.id === selectedStyle)?.name}</div></div></div><i className={`fas fa-chevron-down text-slate-400 dark:text-slate-500 transition-transform duration-300 ${uiState.style ? 'rotate-180' : ''}`}></i>
+                                        </button>
+                                        
+                                        {uiState.style && (
+                                            <div className="p-2 grid grid-cols-1 gap-1 max-h-[450px] overflow-y-auto scrollbar-hide border-t border-slate-200 dark:border-slate-700/50 animate-slide-down bg-slate-50/40 dark:bg-slate-900/40">
+                                                {DELIVERY_STYLES.map(style => (
+                                                    <div key={style.id} className={`w-full p-1 rounded-lg transition-all ${selectedStyle === style.id ? 'bg-white dark:bg-slate-800 shadow-md border border-cyan-500/30' : ''}`}>
+                                                        {/* Style Button */}
+                                                        <button 
+                                                            onClick={() => setSelectedStyle(style.id)} 
+                                                            className={`w-full p-3 rounded-lg flex items-center gap-3 transition-all ${selectedStyle === style.id ? 'bg-cyan-600 text-white shadow-lg' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400'}`}
+                                                        >
+                                                            <i className={`fas ${style.icon} w-5 text-center`}></i>
+                                                            <span className="font-medium text-sm flex-1 text-left">{style.name}</span>
+                                                            {selectedStyle === style.id && <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded font-mono font-bold">{styleIntensity}/10</span>}
+                                                        </button>
+
+                                                        {/* Intensity Slider - Only shown when selected */}
+                                                        {selectedStyle === style.id && (
+                                                            <div className="mt-2 mb-1 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg animate-slide-down border border-slate-100 dark:border-slate-700/50">
+                                                                <div className="flex justify-between items-center mb-1.5">
+                                                                    <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Level Intensitas</span>
+                                                                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{styleIntensity === 0 ? "Normal" : styleIntensity === 10 ? "Ekstrem" : `${styleIntensity * 10}%`}</span>
+                                                                </div>
+                                                                <input 
+                                                                    type="range" 
+                                                                    min="0" 
+                                                                    max="10" 
+                                                                    step="1" 
+                                                                    value={styleIntensity} 
+                                                                    onChange={(e) => setStyleIntensity(Number(e.target.value))} 
+                                                                    className="w-full intensity-range"
+                                                                />
+                                                                <div className="flex justify-between mt-1">
+                                                                    <div className="text-[9px] text-slate-400">0 (Normal)</div>
+                                                                    <div className="text-[9px] text-slate-400">10 (Maksimal)</div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* SPEED CALIBRATION BOX - EXCLUSIVE AS REQUESTED */}
+                                    <div className="glass-panel-speed rounded-xl overflow-hidden transition-all duration-300 shadow-lg border-amber-500/30">
+                                        <div className="w-full p-5 space-y-2 border-b border-amber-500/10">
+                                            {renderSpeedControl()}
+                                        </div>
+                                    </div>
+
+                                    <div className="glass-panel rounded-xl overflow-hidden transition-all duration-300">
+                                        <button onClick={() => toggleSection('control')} className="w-full p-4 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                            <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><i className="fas fa-wave-square"></i></div><div className="text-left"><div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">Other Controls</div><div className="text-[10px] text-slate-500">Pitch, Weight, Volume</div></div></div><i className={`fas fa-chevron-down text-slate-400 dark:text-slate-500 transition-transform duration-300 ${uiState.control ? 'rotate-180' : ''}`}></i>
+                                        </button>
+                                        {uiState.control && <div className="p-5 space-y-6 border-t border-slate-200 dark:border-slate-700/50 animate-slide-down bg-slate-50/40 dark:bg-slate-900/40">
+                                            {renderKnob("Pitch", pitch, setPitch, -5, 5, "Deep", "High")}
+                                            {renderKnob("Weight", weight, setWeight, -5, 5, "Thin", "Heavy")}
+                                            {renderKnob("Volume", volume, setVolume, -5, 5, "Soft", "Loud")}
+                                            {renderKnob("Articulation", articulation, setArticulation, -5, 5, "Relaxed", "Sharp")}
+                                        </div>}
+                                    </div>
+                                </div>
+                                {/* RIGHT: EDITOR */}
+                                <div className="lg:col-span-8 flex flex-col h-full space-y-4">
+                                    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                                        {[{ label: "Mendesah", code: "(mendesah)" }, { label: "Tertawa", code: "(tertawa)" }, { label: "Sedih", code: "(sedih)" }, { label: "Batuk", code: "(batuk)" }, { label: "Marah", code: "(marah)" }].map(tag => (
+                                            <button 
+                                                key={tag.code} 
+                                                onClick={() => {
+                                                    const tagCode = tag.code;
+                                                    const textarea = textareaRef.current;
+                                                    if (textarea) {
+                                                        const start = textarea.selectionStart;
+                                                        const end = textarea.selectionEnd;
+                                                        
+                                                        // Insert text at cursor position
+                                                        const currentText = text;
+                                                        const before = currentText.substring(0, start);
+                                                        const after = currentText.substring(end);
+                                                        
+                                                        // Add spaces intelligently if needed (optional, keeping it simple here)
+                                                        const newText = before + (before.length > 0 && !before.endsWith(' ') ? ' ' : '') + tagCode + (after.length > 0 && !after.startsWith(' ') ? ' ' : '') + after;
+                                                        
+                                                        setText(newText);
+                                                        
+                                                        // Restore focus and move cursor after the inserted tag
+                                                        setTimeout(() => {
+                                                            textarea.focus();
+                                                            const newCursorPos = start + tagCode.length + (before.length > 0 && !before.endsWith(' ') ? 1 : 0) + (after.length > 0 && !after.startsWith(' ') ? 1 : 0);
+                                                            // We just want it after the tag
+                                                            const finalPos = before.length + (before.length > 0 && !before.endsWith(' ') ? 1 : 0) + tagCode.length;
+                                                            textarea.setSelectionRange(finalPos, finalPos);
+                                                        }, 0);
+                                                    } else {
+                                                        // Fallback
+                                                        setText(prev => prev + (prev.length > 0 && !prev.endsWith(' ') ? ' ' : '') + tagCode);
+                                                    }
+                                                }} 
+                                                className="px-3 py-1.5 rounded-full bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-500 transition-colors shadow-sm border border-transparent"
+                                            >
+                                                + {tag.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex-1 glass-panel rounded-2xl p-1 relative flex flex-col group focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
+                                        <div className="absolute top-0 left-0 right-0 h-10 bg-slate-50/80 dark:bg-slate-800/50 rounded-t-2xl flex items-center justify-between px-4 border-b border-slate-200 dark:border-white/5"><span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Director's Script Editor</span><span className="text-[9px] text-indigo-500 font-medium">Gunakan (...) di akhir baris untuk efek suara</span></div>
+                                        <textarea 
+                                            ref={textareaRef}
+                                            value={text} 
+                                            onChange={(e) => setText(e.target.value)} 
+                                            placeholder="Ketik naskah Anda di sini...&#10;Contoh:&#10;Halo apa kabar?&#10;Ini rahasia lho (berbisik)" 
+                                            className="w-full flex-1 bg-transparent border-none text-slate-800 dark:text-slate-200 p-6 pt-14 focus:ring-0 outline-none resize-none text-lg leading-relaxed placeholder-slate-400 dark:placeholder-slate-600 font-light" 
+                                        />
+                                        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
+                                            <button onClick={fixArticulation} disabled={articulationProcessing || !text} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all backdrop-blur-md border shadow-sm ${articulationProcessing ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-700 cursor-wait' : 'bg-white/80 dark:bg-slate-800/80 text-indigo-600 dark:text-indigo-400 border-slate-200 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:scale-[1.02]'}`}>{articulationProcessing ? <><i className="fas fa-circle-notch fa-spin"></i><span>Fixing...</span></> : <><i className="fas fa-wand-magic-sparkles"></i><span>AI Articulation Fixer</span></>}</button>
+                                            <div className="text-[10px] font-mono text-slate-500 dark:text-slate-600 bg-slate-100 dark:bg-slate-900/80 px-2 py-1.5 rounded">{text.length} Chars</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* NEW FEATURE: LANGUAGE DETECTIVE */}
+                                    <div className="glass-panel rounded-xl p-4 flex items-center justify-between transition-all border border-blue-500/20 bg-blue-50/50 dark:bg-blue-900/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${autoDetectLanguage ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                                                <i className="fas fa-language"></i>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">Language Detective</div>
+                                                <div className="text-[10px] text-slate-500">Deteksi bahasa otomatis (Inggris, Jepang, Mandarin, dll)</div>
+                                            </div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={autoDetectLanguage} onChange={(e) => setAutoDetectLanguage(e.target.checked)} className="sr-only peer" />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="glass-panel rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3"><div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${optimizationMode === 'optimized' ? 'bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}><i className={`fas ${optimizationMode === 'optimized' ? 'fa-wand-magic-sparkles' : 'fa-file-lines'}`}></i></div><div><div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">Director Mode</div><div className="text-[10px] text-slate-500">{optimizationMode === 'optimized' ? 'AI akan memproses tag (berbisik), dll.' : 'Baca mentah (Raw Text)'}</div></div></div>
+                                        <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1 rounded-lg"><button onClick={() => setOptimizationMode("original")} className={`px-4 py-2 rounded-md text-xs font-bold transition-all ${optimizationMode === "original" ? "bg-slate-600 text-white shadow-lg" : "text-slate-500 dark:text-slate-400"}`}>Raw</button><button onClick={() => setOptimizationMode("optimized")} className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${optimizationMode === "optimized" ? "bg-purple-600 text-white shadow-lg" : "text-slate-500 dark:text-slate-400"}`}><i className="fas fa-magic text-[10px]"></i>Smart Director</button></div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <button onClick={generateAudio} disabled={processing.isLoading || !text} className={`flex-1 py-4 rounded-xl font-bold text-sm tracking-wide shadow-xl transition-all relative overflow-hidden group ${processing.isLoading || !text ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-500 hover:shadow-indigo-500/25 active:scale-[0.99]"}`}>{processing.isLoading && <div className={`absolute inset-0 opacity-20 ${processing.step === 'baking' ? 'loading-gradient-amber' : 'loading-gradient'}`}></div>}<div className="relative flex items-center justify-center gap-2">{processing.isLoading ? <><i className="fas fa-circle-notch fa-spin"></i><span>{processing.step === 'analyzing' ? 'DIRECTING SCENE...' : processing.step === 'baking' ? 'CALIBRATING SPEED & ENCODING MP3...' : 'SYNTHESIZING VOICE...'}</span></> : <><i className="fas fa-play"></i><span>GENERATE VOICE OVER</span></>}</div></button>
+                                    </div>
+                                    {processing.error && <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs flex items-center gap-3 animate-slide-down"><i className="fas fa-exclamation-triangle"></i>{processing.error}</div>}
+                                    {result.previewUrl && !processing.isLoading && <div className="glass-panel rounded-2xl p-6 space-y-6 animate-slide-down border-t-2 border-indigo-500">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/40 animate-pulse"><i className="fas fa-music"></i></div>
+                                            <div className="flex-1">
+                                                {/* Player uses previewUrl (Raw WAV for fast playback) */}
+                                                <audio ref={mainAudioRef} controls src={result.previewUrl} className="w-full h-10 invert-[.9] dark:invert-0" />
+                                                <div className="flex justify-between mt-1 text-[10px] text-slate-400">
+                                                    <span>Preview Speed: {speed.toFixed(1)}x</span>
+                                                    <span>Download Speed: {result.downloadSpeed.toFixed(1)}x (MP3)</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Download Button uses downloadUrl (Baked MP3) */}
+                                            {result.downloadUrl && (
+                                                <a href={result.downloadUrl} download={`SPACE_${selectedVoice}_${result.downloadSpeed}x_${Date.now()}.mp3`} className="h-10 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-lg hover:shadow-amber-500/30 text-xs font-bold flex items-center gap-2 transition-all">
+                                                    <div className="flex flex-col items-end leading-none">
+                                                        <span>DOWNLOAD</span>
+                                                        <span className="text-[9px] opacity-80">{result.downloadSpeed.toFixed(1)}x MP3</span>
+                                                    </div>
+                                                    <i className="fas fa-download"></i>
+                                                </a>
+                                            )}
+                                        </div>
+                                        {result.refinedScript && result.modeUsed === 'optimized' && <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50"><div className="flex items-center justify-between mb-3"><span className="text-[10px] font-bold text-slate-500 uppercase">Arahan Director (AI Instructions)</span><div className="flex gap-1"><span className="text-[9px] bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded">Processed</span></div></div><p className="text-sm text-slate-700 dark:text-slate-400 italic font-serif leading-relaxed opacity-80 border-l-2 border-purple-500 pl-3 whitespace-pre-line">"{result.refinedScript}"</p></div>}
+                                    </div>}
+                                </div>
+                            </div>
+                        )}
+                        {/* Other views handled... */}
+                        {currentView === 'idea' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-down">
+                                <div className="lg:col-span-5 space-y-4">
+                                    <div className="glass-panel-accent rounded-xl p-6 border-t-2 border-teal-500/50">
+                                        <div className="mb-6 flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center"><i className="fas fa-brain"></i></div><div><h2 className="text-lg font-bold text-slate-800 dark:text-white">Idea Generator</h2><p className="text-xs text-slate-500 dark:text-slate-400">Deskripsikan produk, kami buatkan naskahnya.</p></div></div>
+                                        <div className="space-y-5">
+                                            <div className="space-y-2"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Tentang Produk / Layanan</label><textarea value={ideaForm.description} onChange={(e) => setIdeaForm({...ideaForm, description: e.target.value})} placeholder="Contoh: Kopi bubuk premium arabika gayo, packaging praktis..." className="w-full h-24 bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-800 dark:text-slate-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none placeholder-slate-400 dark:placeholder-slate-600" /></div>
+                                            <div className="space-y-2"><div className="flex justify-between items-end"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">USP (Keunggulan Utama)</label><button onClick={generateUSP} disabled={!ideaForm.description || uspProcessing} className="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 px-2 py-1 rounded hover:bg-teal-200 dark:hover:bg-teal-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 font-semibold">{uspProcessing ? <i className="fas fa-circle-notch fa-spin text-[9px]"></i> : <i className="fas fa-wand-magic-sparkles text-[9px]"></i>}{uspProcessing ? "Menganalisis..." : "Biar AI yang buatin"}</button></div><input type="text" value={ideaForm.usp} onChange={(e) => setIdeaForm({...ideaForm, usp: e.target.value})} placeholder="Contoh: Tanpa ampas, seduh 3 detik, promo beli 1 gratis 1" className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-800 dark:text-slate-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none placeholder-slate-400 dark:placeholder-slate-600" /></div>
+                                            <div className="space-y-2"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Jenis Konten</label><select value={ideaForm.contentType} onChange={(e) => setIdeaForm({...ideaForm, contentType: e.target.value})} className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-800 dark:text-slate-200 focus:border-teal-500 outline-none appearance-none"><option>Iklan Media Sosial (TikTok/Reels)</option><option>Iklan Radio / Spotify</option><option>Video Penjelasan Produk (Explainer)</option><option>Narasi Dokumenter Pendek</option><option>Soft Selling Storytelling</option><option>YouTube Educational (Edukasi)</option><option>YouTube Unboxing & Review</option></select></div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Bahasa Target</label>
+                                                <select value={ideaForm.language} onChange={(e) => setIdeaForm({...ideaForm, language: e.target.value})} className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-800 dark:text-slate-200 focus:border-teal-500 outline-none appearance-none">
+                                                    <option>Bahasa Indonesia</option>
+                                                    <option>Bahasa Melayu (Malaysia)</option>
+                                                    <option>English (Inggris)</option>
+                                                    <option>English (Singapore)</option>
+                                                    <option>Japanese (Jepang)</option>
+                                                    <option>Mandarin (China)</option>
+                                                    <option>Thai (Thailand)</option>
+                                                    <option>Vietnamese (Vietnam)</option>
+                                                    <option>Tagalog (Filipina)</option>
+                                                    <option>Korean (Korea)</option>
+                                                    <option>Hindi (India)</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Jumlah Variasi Script</label><div className="flex bg-white/50 dark:bg-slate-900/50 p-1 rounded-lg border border-slate-300 dark:border-slate-700">{[1, 3, 5].map(num => <button key={num} onClick={() => setIdeaForm({...ideaForm, count: num})} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${ideaForm.count === num ? "bg-teal-600 text-white shadow" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"}`}>{num} Script</button>)}</div></div>
+                                            <button onClick={generateIdeas} disabled={ideaProcessing || !ideaForm.description || !ideaForm.usp} className={`w-full py-3.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all relative overflow-hidden mt-2 ${ideaProcessing || !ideaForm.description || !ideaForm.usp ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed" : "bg-teal-600 text-white hover:bg-teal-500 hover:shadow-teal-500/25 active:scale-[0.99]"}`}>{ideaProcessing && <div className="absolute inset-0 loading-gradient-teal opacity-20"></div>}<span className="relative flex items-center justify-center gap-2">{ideaProcessing ? <><i className="fas fa-circle-notch fa-spin"></i>MEMBUAT KONSEP...</> : <><i className="fas fa-pen-nib"></i>BUAT SCRIPT</>}</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="lg:col-span-7 flex flex-col h-full">
+                                    {generatedIdeas.length > 0 ? (
+                                        <div className="space-y-4 animate-slide-down"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Hasil Generasi ({generatedIdeas.length})</h3><button onClick={() => setGeneratedIdeas([])} className="text-xs text-slate-500 hover:text-red-400"><i className="fas fa-trash mr-1"></i> Clear</button></div><div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide">{generatedIdeas.map((script, idx) => <div key={idx} className="glass-panel p-5 rounded-xl border border-slate-200 dark:border-slate-700/50 hover:border-teal-500/30 transition-all group"><div className="flex justify-between items-start mb-3"><span className="bg-slate-200 dark:bg-slate-800 text-teal-600 dark:text-teal-400 text-[10px] font-bold px-2 py-1 rounded">VARIASI #{idx + 1}</span></div><p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4 font-light">{script}</p><button onClick={() => { setText(script); setCurrentView('tts'); }} className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 text-slate-500 dark:text-slate-400 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 group-hover:text-indigo-600 dark:group-hover:text-white"><span>Gunakan Script Ini</span><i className="fas fa-arrow-right"></i></button></div>)}</div></div>
+                                    ) : <div className="h-full glass-panel rounded-xl flex flex-col items-center justify-center p-8 text-center opacity-60"><div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-600 text-2xl mb-4"><i className="fas fa-lightbulb"></i></div><h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">Belum ada script</h3><p className="text-sm text-slate-500 max-w-xs mt-2">Isi detail produk di panel kiri dan klik "Buat Script" untuk melihat variasi ide konten Anda di sini.</p></div>}
+                                </div>
+                            </div>
+                        )}
+                        {currentView === 'photo' && (
+                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-down">
+                                <div className="lg:col-span-5 space-y-4">
+                                    <div className="glass-panel-photo rounded-xl p-6 border-t-2 border-pink-500/50">
+                                        <div className="mb-6 flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-pink-500/10 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400 flex items-center justify-center"><i className="fas fa-camera"></i></div><div><h2 className="text-lg font-bold text-slate-800 dark:text-white">Photo Analyzer</h2><p className="text-xs text-slate-500 dark:text-slate-400">Upload foto produk, AI akan membuatkan naskah.</p></div></div>
+                                        <div className="space-y-5">
+                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl h-36 flex flex-col items-center justify-center cursor-pointer transition-all group relative overflow-hidden ${photoForm.imageData ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/10' : 'border-slate-300 dark:border-slate-700 hover:border-pink-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}><input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />{photoForm.imageData ? <><img src={`data:${photoForm.mimeType || 'image/jpeg'};base64,${photoForm.imageData}`} className="absolute inset-0 w-full h-full object-cover opacity-60" /><div className="z-10 bg-black/50 p-2 rounded-lg text-white text-xs flex items-center gap-2"><i className="fas fa-check"></i>{photoForm.imageName}</div><div className="absolute bottom-2 text-[10px] text-white/80 bg-black/30 px-2 rounded">Klik untuk ganti foto</div></> : <div className="text-center p-4"><div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400 group-hover:text-pink-500 transition-colors"><i className="fas fa-cloud-upload-alt text-lg"></i></div><p className="text-xs font-bold text-slate-600 dark:text-slate-300">Upload Foto Produk</p></div>}</div>
+                                            
+                                            {/* UPDATED: Content Type Buttons */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Gaya Script / Konten</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {[
+                                                        { label: "TikTok Affiliate", val: "TikTok Affiliate" }, 
+                                                        { label: "Edukasi / Tips", val: "Edukasi" }, 
+                                                        { label: "Konten Iklan", val: "Konten Iklan" }, 
+                                                        { label: "YouTube Content", val: "YouTube Content" },
+                                                        { label: "Unboxing Review", val: "Unboxing Review" }
+                                                    ].map((opt) => (
+                                                        <button key={opt.val} onClick={() => setPhotoForm({...photoForm, contentType: opt.val})} className={`p-2 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${photoForm.contentType === opt.val ? "bg-pink-100 dark:bg-pink-900/30 border-pink-500 text-pink-700 dark:text-pink-300" : "bg-white/50 dark:bg-slate-900/50 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"}`}>
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* UPDATED: Language Dropdown in Photo View */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Bahasa Script</label>
+                                                <select value={photoForm.language} onChange={(e) => setPhotoForm({...photoForm, language: e.target.value})} className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-800 dark:text-slate-200 focus:border-pink-500 outline-none appearance-none">
+                                                    <option>Bahasa Indonesia</option>
+                                                    <option>English (International)</option>
+                                                    <option>English (Singapore)</option>
+                                                    <option>English (Australia)</option>
+                                                    <option>Japanese (Jepang)</option>
+                                                    <option>Thai (Thailand)</option>
+                                                    <option>Tagalog (Filipina)</option>
+                                                    <option>Vietnamese (Vietnam)</option>
+                                                    <option>Arabic (Arab)</option>
+                                                    <option>Chinese (Mandarin)</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-2"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase flex items-center gap-2">Target Market <span className="text-[9px] bg-slate-200 dark:bg-slate-700 px-1.5 rounded-full text-slate-500">Auto-Tone</span></label><div className="grid grid-cols-2 gap-3"><div className="space-y-1"><label className="text-[10px] text-slate-500">Usia</label><select value={photoForm.targetAge} onChange={(e) => setPhotoForm({...photoForm, targetAge: e.target.value})} className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-800 dark:text-slate-200 focus:border-pink-500 outline-none"><option>Gen Z (18 - 24 Tahun)</option><option>Millennials (25 - 40 Tahun)</option><option>Gen X (41 - 55 Tahun)</option><option>Boomers (55+ Tahun)</option></select></div><div className="space-y-1"><label className="text-[10px] text-slate-500">Gender</label><select value={photoForm.targetGender} onChange={(e) => setPhotoForm({...photoForm, targetGender: e.target.value})} className="w-full bg-white/50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs text-slate-800 dark:text-slate-200 focus:border-pink-500 outline-none"><option>Semua Gender</option><option>Wanita</option><option>Pria</option></select></div></div></div>
+                                            <div className="space-y-2"><label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Jumlah Variasi</label><div className="flex bg-white/50 dark:bg-slate-900/50 p-1 rounded-lg border border-slate-300 dark:border-slate-700">{[1, 3, 5].map(num => <button key={num} onClick={() => setPhotoForm({...photoForm, count: num})} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${photoForm.count === num ? "bg-pink-600 text-white shadow" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"}`}>{num} Script</button>)}</div></div>
+                                            <button onClick={generateScriptsFromPhoto} disabled={photoProcessing || !photoForm.imageData} className={`w-full py-3.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all relative overflow-hidden mt-2 ${photoProcessing || !photoForm.imageData ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed" : "bg-pink-600 text-white hover:bg-pink-500 hover:shadow-pink-500/25 active:scale-[0.99]"}`}>{photoProcessing && <div className="absolute inset-0 loading-gradient-pink opacity-20"></div>}<span className="relative flex items-center justify-center gap-2">{photoProcessing ? <><i className="fas fa-circle-notch fa-spin"></i>MENGANALISA FOTO...</> : <><i className="fas fa-magic"></i>BUAT SCRIPT DARI FOTO</>}</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="lg:col-span-7 flex flex-col h-full">
+                                    {generatedPhotoScripts.length > 0 ? (
+                                        <div className="space-y-4 animate-slide-down"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Hasil Analisa Foto ({generatedPhotoScripts.length})</h3><button onClick={() => setGeneratedPhotoScripts([])} className="text-xs text-slate-500 hover:text-red-400"><i className="fas fa-trash mr-1"></i> Clear</button></div><div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide">{generatedPhotoScripts.map((script, idx) => <div key={idx} className="glass-panel p-5 rounded-xl border border-slate-200 dark:border-slate-700/50 hover:border-pink-500/30 transition-all group"><div className="flex justify-between items-start mb-3"><span className="bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-300 text-[10px] font-bold px-2 py-1 rounded border border-pink-200 dark:border-pink-800">OPSI #{idx + 1}</span></div><p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4 font-light border-l-2 border-pink-300 pl-3">{script}</p><button onClick={() => { setText(script); setCurrentView('tts'); }} className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 text-slate-500 dark:text-slate-400 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 group-hover:text-indigo-600 dark:group-hover:text-white"><span>Pakai Script Ini</span><i className="fas fa-arrow-right"></i></button></div>)}</div></div>
+                                    ) : <div className="h-full glass-panel rounded-xl flex flex-col items-center justify-center p-8 text-center opacity-60"><div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-600 text-2xl mb-4"><i className="fas fa-images"></i></div><h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">Preview Script</h3><p className="text-sm text-slate-500 max-w-xs mt-2">Upload foto di panel kiri untuk melihat script hasil analisa visual AI di sini.</p></div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* --- FLOATING PREVIEW PLAYER --- */}
+                    {previewState.playingVoiceId && (
+                        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up">
+                            <div className="bg-slate-900/90 dark:bg-indigo-900/90 backdrop-blur-md text-white rounded-full px-6 py-3 shadow-2xl flex items-center gap-4 border border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center animate-pulse-fast">
+                                        {previewState.isLoading ? <i className="fas fa-circle-notch fa-spin text-xs"></i> : <i className="fas fa-volume-high text-xs"></i>}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">PREVIEWING</span>
+                                        <span className="text-sm font-bold">{VOICE_OPTIONS.find(v => v.id === previewState.playingVoiceId)?.name || 'Voice'}</span>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-[1px] bg-white/20"></div>
+                                <div className="flex gap-1 h-4 items-center px-2">
+                                    <div className="bar" style={{animationDelay: '0s'}}></div>
+                                    <div className="bar" style={{animationDelay: '0.1s'}}></div>
+                                    <div className="bar" style={{animationDelay: '0.2s'}}></div>
+                                    <div className="bar" style={{animationDelay: '0.3s'}}></div>
+                                    <div className="bar" style={{animationDelay: '0.4s'}}></div>
+                                </div>
+                                <div className="h-8 w-[1px] bg-white/20"></div>
+                                <button onClick={stopPreview} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                                    <i className="fas fa-stop text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- SETTINGS MODAL (API KEY) --- */}
+                    {showSettings && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-slide-down">
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
+                                <div className="p-6 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                            <i className="fas fa-key"></i>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-slate-800 dark:text-white">Pengaturan Sistem</h3>
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400">Konfigurasi Gemini API Key</p>
+                                        </div>
+                                    </div>
+                                    {apiKey && (
+                                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                                            <i className="fas fa-times text-lg"></i>
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-xl text-xs text-amber-800 dark:text-amber-200/80 leading-relaxed">
+                                        <i className="fas fa-info-circle mr-2"></i>
+                                        Karena aplikasi ini di-hosting secara statis, Anda memerlukan <strong>Gemini API Key</strong> Anda sendiri untuk menggunakan fitur Voice Engine & Text Generation. Key Anda hanya disimpan secara lokal di browser ini.
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Gemini API Key</label>
+                                        <input 
+                                            type="password" 
+                                            value={tempApiKey} 
+                                            onChange={(e) => setTempApiKey(e.target.value)}
+                                            placeholder="AIzaSy..." 
+                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
+                                        />
+                                        <div className="text-[10px] text-slate-500 pt-1">
+                                            Dapatkan API Key gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Google AI Studio</a>.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
+                                    {apiKey && (
+                                        <button onClick={() => setShowSettings(false)} className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                            Batal
+                                        </button>
+                                    )}
+                                    <button onClick={saveApiKey} disabled={!tempApiKey} className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg ${!tempApiKey ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/30'}`}>
+                                        Simpan & Lanjutkan <i className="fas fa-arrow-right ml-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
