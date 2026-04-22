@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -345,7 +345,7 @@ Optional Enhancement:
             const textareaRef = useRef(null);
 
             // -- THEME & VIEW STATE --
-            const [isDarkMode, setIsDarkMode] = useState(true);
+            const [isDarkMode, setIsDarkMode] = useState(false);
             const [currentView, setCurrentView] = useState("tts");
             const [isMenuOpen, setIsMenuOpen] = useState(false); 
 
@@ -957,7 +957,7 @@ Optional Enhancement:
                     <div className="max-w-6xl w-full mb-8 flex flex-row items-center justify-between gap-6 relative z-50">
                         <div className="pl-1">
                             <h1 className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">
-                                SPACE<span className="text-slate-800 dark:text-slate-100 not-italic font-light">VOICE</span>
+                                TEXT<span className="text-slate-800 dark:text-slate-100 not-italic font-light"> JADI SUARA</span>
                             </h1>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono tracking-widest mt-1">AI NEURAL AUDIO ENGINE</p>
                         </div>
