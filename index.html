@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -334,18 +334,14 @@ Optional Enhancement:
         // --- MAIN APP COMPONENT ---
 
         const App = () => {
-            // -- API KEY & SETTINGS STATE --
-            const [apiKey, setApiKey] = useState(() => localStorage.getItem('spacevoice_api_key') || "");
-            const [showSettings, setShowSettings] = useState(() => !localStorage.getItem('spacevoice_api_key'));
-            const [tempApiKey, setTempApiKey] = useState(localStorage.getItem('spacevoice_api_key') || "");
-
+            const apiKey = ""; // API Key injected by environment
             const mainAudioRef = useRef(null);
             
             // Ref for Textarea Cursor Position Logic
             const textareaRef = useRef(null);
 
             // -- THEME & VIEW STATE --
-            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [isDarkMode, setIsDarkMode] = useState(true);
             const [currentView, setCurrentView] = useState("tts");
             const [isMenuOpen, setIsMenuOpen] = useState(false); 
 
@@ -569,19 +565,6 @@ Optional Enhancement:
                 return URL.createObjectURL(new Blob([wavHeaderBuffer, pcmData], { type: 'audio/wav' }));
             };
 
-            const checkApiKey = () => {
-                if (!apiKey) {
-                    setShowSettings(true);
-                    throw new Error("API Key belum dikonfigurasi. Silakan masukkan Gemini API Key Anda.");
-                }
-            };
-
-            const saveApiKey = () => {
-                localStorage.setItem('spacevoice_api_key', tempApiKey);
-                setApiKey(tempApiKey);
-                setShowSettings(false);
-            };
-
             const handlePreview = async (e, voiceId) => {
                 e.stopPropagation();
                 if (previewState.playingVoiceId === voiceId) {
@@ -599,7 +582,6 @@ Optional Enhancement:
                 setPreviewState({ playingVoiceId: voiceId, isLoading: true, audio: null });
 
                 try {
-                    checkApiKey();
                     const targetVoice = VOICE_OPTIONS.find(v => v.id === voiceId);
                     const textToSay = targetVoice ? targetVoice.desc : "Halo, ini adalah contoh suara saya.";
                     const ttsResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
@@ -654,7 +636,6 @@ Optional Enhancement:
                 if (!photoForm.imageData) return alert("Mohon upload foto.");
                 setPhotoProcessing(true);
                 try {
-                    checkApiKey();
                     const prompt = `Role: Expert Copywriter. Task: Create ${photoForm.count} voice-over scripts for ${photoForm.contentType} based on the image. 
                     Language: ${photoForm.language}.
                     Target Audience: ${photoForm.targetAge}, ${photoForm.targetGender}.
@@ -686,7 +667,6 @@ Optional Enhancement:
                  if (!ideaForm.description) return;
                  setIdeaProcessing(true);
                  try {
-                     checkApiKey();
                      let instructions = "CRITICAL: Return ONLY the spoken words (dialogue). DO NOT include visual descriptions like 'Visual:', 'Scene:', 'Action:'. Just the script text.";
                      if (ideaForm.contentType === "Iklan Media Sosial (TikTok/Reels)") {
                         instructions += " MANDATORY: Because this is for TikTok Shop, EVERY script MUST end with a Call to Action to click the 'Keranjang Kuning' (Yellow Basket).";
@@ -716,7 +696,6 @@ Optional Enhancement:
                 if (!ideaForm.description) return alert("Isi deskripsi dulu.");
                 setUspProcessing(true);
                 try {
-                    checkApiKey();
                     const prompt = `Extract one short Indonesian USP from: "${ideaForm.description}". Return ONLY the text.`;
                     const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: "POST", headers: { "Content-Type": "application/json" },
@@ -741,7 +720,6 @@ Optional Enhancement:
                 if (!text) return;
                 setArticulationProcessing(true);
                 try {
-                    checkApiKey();
                     const prompt = `Rewrite to improve Indonesian articulation/prosody for TTS by adding punctuation. Do not change words. Input: "${text}"`;
                     const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: "POST", headers: { "Content-Type": "application/json" },
@@ -765,14 +743,6 @@ Optional Enhancement:
             // --- MAIN GENERATE AUDIO FUNCTION ---
             const generateAudio = async () => {
                 if (!text.trim()) return;
-                
-                try {
-                    checkApiKey();
-                } catch(err) {
-                    alert(err.message);
-                    return;
-                }
-
                 let effectiveMode = optimizationMode;
                 if (text.match(/\(.*\)/) && optimizationMode === "original") effectiveMode = "optimized"; 
 
@@ -957,14 +927,11 @@ Optional Enhancement:
                     <div className="max-w-6xl w-full mb-8 flex flex-row items-center justify-between gap-6 relative z-50">
                         <div className="pl-1">
                             <h1 className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-600 dark:from-indigo-400 dark:to-cyan-400">
-                                TEXT<span className="text-slate-800 dark:text-slate-100 not-italic font-light"> JADI SUARA</span>
+                                TEXT JADI<span className="text-slate-800 dark:text-slate-100 not-italic font-light"> SUARA</span>
                             </h1>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono tracking-widest mt-1">AI NEURAL AUDIO ENGINE</p>
                         </div>
                         <div className="flex items-center gap-3 relative">
-                            <button onClick={() => setShowSettings(true)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${!apiKey ? 'bg-amber-500 text-white animate-pulse' : 'bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:text-indigo-500'}`} title="Pengaturan API">
-                                <i className="fas fa-cog text-sm"></i>
-                            </button>
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-all shadow-sm">
                                 <i className={`fas ${isDarkMode ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
                             </button>
@@ -1187,7 +1154,7 @@ Optional Enhancement:
                                             
                                             {/* Download Button uses downloadUrl (Baked MP3) */}
                                             {result.downloadUrl && (
-                                                <a href={result.downloadUrl} download={`SPACE_${selectedVoice}_${result.downloadSpeed}x_${Date.now()}.mp3`} className="h-10 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-lg hover:shadow-amber-500/30 text-xs font-bold flex items-center gap-2 transition-all">
+                                                <a href={result.downloadUrl} download={`TEXTJADISUARA_${selectedVoice}_${result.downloadSpeed}x_${Date.now()}.mp3`} className="h-10 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-lg hover:shadow-amber-500/30 text-xs font-bold flex items-center gap-2 transition-all">
                                                     <div className="flex flex-col items-end leading-none">
                                                         <span>DOWNLOAD</span>
                                                         <span className="text-[9px] opacity-80">{result.downloadSpeed.toFixed(1)}x MP3</span>
@@ -1322,59 +1289,6 @@ Optional Enhancement:
                                 <button onClick={stopPreview} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
                                     <i className="fas fa-stop text-xs"></i>
                                 </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* --- SETTINGS MODAL (API KEY) --- */}
-                    {showSettings && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-slide-down">
-                            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
-                                <div className="p-6 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                                            <i className="fas fa-key"></i>
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-slate-800 dark:text-white">Pengaturan Sistem</h3>
-                                            <p className="text-[10px] text-slate-500 dark:text-slate-400">Konfigurasi Gemini API Key</p>
-                                        </div>
-                                    </div>
-                                    {apiKey && (
-                                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                                            <i className="fas fa-times text-lg"></i>
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="p-6 space-y-4">
-                                    <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-xl text-xs text-amber-800 dark:text-amber-200/80 leading-relaxed">
-                                        <i className="fas fa-info-circle mr-2"></i>
-                                        Karena aplikasi ini di-hosting secara statis, Anda memerlukan <strong>Gemini API Key</strong> Anda sendiri untuk menggunakan fitur Voice Engine & Text Generation. Key Anda hanya disimpan secara lokal di browser ini.
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Gemini API Key</label>
-                                        <input 
-                                            type="password" 
-                                            value={tempApiKey} 
-                                            onChange={(e) => setTempApiKey(e.target.value)}
-                                            placeholder="AIzaSy..." 
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-800 dark:text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
-                                        />
-                                        <div className="text-[10px] text-slate-500 pt-1">
-                                            Dapatkan API Key gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">Google AI Studio</a>.
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
-                                    {apiKey && (
-                                        <button onClick={() => setShowSettings(false)} className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                            Batal
-                                        </button>
-                                    )}
-                                    <button onClick={saveApiKey} disabled={!tempApiKey} className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg ${!tempApiKey ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/30'}`}>
-                                        Simpan & Lanjutkan <i className="fas fa-arrow-right ml-1"></i>
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     )}
